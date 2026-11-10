@@ -162,3 +162,35 @@ class TestGensetModule(TestCase):
                 self.assertEqual(obs, np.array([1, 1, 0, 0]))
                 self.assertFalse(done)
                 self.assertEqual(info['provided_energy'], possible)
+
+    def test_sample_action(self):
+        for normalized_action_bounds in ((0, 1), (-1, 1)):
+            with self.subTest(normalized_action_bounds=normalized_action_bounds):
+                genset, _ = self.get_genset(normalized_action_bounds=normalized_action_bounds)
+                action = genset.sample_action(strict_bound=False)
+                self.assertIn(action, genset.action_space.normalized)
+
+    def test_sample_action_strict_bound(self):
+        for normalized_action_bounds in ((0, 1), (-1, 1)):
+            for init_start_up in (True, False):
+                for start_up_time, wind_down_time in ((0, 0), (2, 2)):
+                    with self.subTest(normalized_action_bounds=normalized_action_bounds,
+                                      init_start_up=init_start_up,
+                                      start_up_time=start_up_time,
+                                      wind_down_time=wind_down_time):
+                        genset, _ = self.get_genset(
+                            normalized_action_bounds=normalized_action_bounds,
+                            init_start_up=init_start_up,
+                            start_up_time=start_up_time,
+                            wind_down_time=wind_down_time,
+                            raise_errors=True
+                        )
+                        for _ in range(20):
+                            action = genset.sample_action(strict_bound=True)
+                            self.assertIn(action, genset.action_space.normalized)
+                            obs, reward, done, info = genset.step(action, normalized=True)
+                            if genset.current_status:
+                                self.assertGreaterEqual(info['provided_energy'], genset.min_production)
+                                self.assertLessEqual(info['provided_energy'], genset.max_production)
+                            else:
+                                self.assertEqual(info['provided_energy'], 0.0)

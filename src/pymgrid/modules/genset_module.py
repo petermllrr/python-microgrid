@@ -361,7 +361,16 @@ class GensetModule(BaseMicrogridModule):
             self._update_up_down_times()
 
     def sample_action(self, strict_bound=False, **kwargs):
-        return np.array([np.random.rand(), super().sample_action(strict_bound=strict_bound)])
+        status_action = np.random.rand()
+        if strict_bound:
+            goal_status = round(status_action)
+            min_prod = self.next_min_production(goal_status)
+            max_prod = self.next_max_production(goal_status)
+        else:
+            min_prod = 0.0
+            max_prod = self.running_max_production
+        prod_action = np.random.uniform(min_prod, max_prod)
+        return self._action_space.normalize(np.array([status_action, prod_action]))
 
     def _raise_error(self, ask_value, available_value, as_source=False, as_sink=False, lower_bound=False):
         try:
